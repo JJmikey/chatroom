@@ -1,11 +1,40 @@
 <script lang="ts">
+    import { marked } from "marked";
+  
+    function md(htmlText: string) {
+        return marked(htmlText);
+    }
+
+    let isTyping = false;
+
+
+
     // 之後如果你想再玩嚴謹啲，可以改返型別
     let input = "";
     let messages: any[] = [];
 
+
+    function typeWriterEffect(text: string, callback: (t: string) => void) {
+        let index = 0;
+        const speed = 20; // 每字 20ms，可以調整
+
+        const interval = setInterval(() => {
+            callback(text.slice(0, index));
+            index++;
+
+            if (index > text.length) {
+            clearInterval(interval);
+            }
+        }, speed);
+    }
+
+
   
     async function send() {
       if (!input.trim()) return;
+
+      isTyping = true;
+
   
       // 加用戶訊息
       messages = [...messages, { from: "you", text: input }];
@@ -27,8 +56,20 @@
         }
   
         const data = await res.json();
+
+        isTyping = false;       // ← typing 消失
+
   
-        messages = [...messages, { from: "ai", text: data.reply }];
+        // 先加一個空白 AI 訊息，等佢逐字填入
+        messages = [...messages, { from: "ai", text: "" }];
+
+        const aiIndex = messages.length - 1;
+
+        typeWriterEffect(data.reply, (partial) => {
+            messages[aiIndex].text = partial;
+            messages = [...messages]; // 必須：Svelte 才會 re-render
+        });
+
       } catch (err) {
         console.error("Fetch error:", err);
         messages = [...messages, { from: "ai", text: "⚠️ Network error." }];
@@ -44,9 +85,18 @@
 
         {#each messages as msg}
         <div class={`bubble ${(msg as any).from}`}>
-          {(msg as any).text}
+            {@html md(msg.text)}
         </div>
-      {/each}
+        {/each} 
+
+
+        {#if isTyping}
+            <div class="bubble ai typing">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+            </div>
+        {/if}
       
     </div>
   
@@ -128,5 +178,34 @@
       font-weight: 600;
       cursor: pointer;
     }
+
+    .typing {
+        display: flex;
+        gap: 4px;
+        opacity: 0.7;
+    }
+
+    .dot {
+        width: 6px;
+        height: 6px;
+        background: #555;
+        border-radius: 50%;
+        animation: blink 1.4s infinite both;
+    }
+
+    .dot:nth-child(2) {
+        animation-delay: 0.2s;
+        }
+        .dot:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @keyframes blink {
+        0% { opacity: .2; }
+        20% { opacity: 1; }
+        100% { opacity: .2; }
+    }
+
+
   </style>
   
