@@ -69,6 +69,7 @@
         height: 100dvh;
         width: 100%;
         max-width: 420px;
+        margin: 0 auto;   /* 重要！置中（只在 desktop） */
         background: #ffffff;
         border-radius: 0;
         box-shadow: none;
