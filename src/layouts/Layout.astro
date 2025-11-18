@@ -2,14 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Chatroom</title>
   </head>
 
-  <body style="margin: 0; display: grid; place-items: center; min-height: 100vh; background-color: #f0f2f5;">
-  <!--
-    從頁面傳入的內容 (例如 ChatWindow 組件)
-    將會被渲染到 <slot /> 的位置
-  -->
-    <slot />   <!-- ← 一定要有呢行！！ -->
+  <body style="margin: 0; overflow:hidden; display: grid; place-items: center; min-height: 100vh; background-color: #f0f2f5;">
+    <slot />
   </body>
 </html>

@@ -64,18 +64,16 @@
   
   <style>
     .chat-container {
-      display: flex;
-      flex-direction: column;
-      height: 80vh;
-      width: 100%;
-      max-width: 420px;
-      background: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-      padding: 12px;
-      overflow: hidden;
-      border: 1px solid #e7e7e7;
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+        width: 100%;
+        max-width: 420px;
+        background: #ffffff;
+        border-radius: 0;
+        box-shadow: none;
     }
+
   
     .messages {
       flex: 1;
