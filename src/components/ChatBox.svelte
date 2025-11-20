@@ -336,7 +336,7 @@
       border: 1px solid #ccc;
       border-radius: 20px;
       padding: 10px 14px;
-      font-size: 15px;
+      font-size: 16px; 
       outline: none;
     }
   
