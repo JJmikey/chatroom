@@ -11,8 +11,12 @@
    // 👇 確保引入 showList 用嚟切換手機視圖
     import { showList } from "../stores/ui.js";
 
-    // 👇 引入新造的組件
+    // 👇 引入新造的組件for swipe to delete
     import ConversationItem from "./ConversationItem.svelte";
+
+    // 👇 引入 trigger
+    import { refreshTrigger } from "../stores/ui.js";
+
 
     interface Conversation {
       id: string;
@@ -26,7 +30,13 @@
   
     async function load() {
         try {
-            conversations = await storage.listConversations();
+            const list = await storage.listConversations();
+            
+            // ⭐ Sort: b.updated - a.updated 代表「由大到小」排序 (最新的在上面)
+            conversations = list.sort((a: Conversation, b: Conversation) => {
+                return b.updated - a.updated;
+            });
+              
         } catch (err) {
             console.error("Load conversations failed:", err);
             conversations = [];
@@ -63,7 +73,7 @@
         conversations = conversations.filter(c => c.id !== idToDelete);
 
         // 4. 如果剛好正在看這個被刪除的對話，要清空右邊
-        if ($selectedConversationId === idToDelete) {
+        if (selectedConversationId.get() === idToDelete) {
           selectConversation(null);
         }
         
@@ -75,6 +85,16 @@
 
   
     onMount(load);
+
+    // 👇👇👇 新增：Reactive 監聽 👇👇👇
+    // 當 $refreshTrigger 改變時，Svelte 會自動執行這一塊
+    // 由於 store 初始值係 0，頁面載入時這段代碼也會執行一次，所以取代了 onMount(load)
+    $: {
+        // 我們引用 $refreshTrigger 只是為了觸發依賴，數值本身不重要
+        const _ = $refreshTrigger; 
+        load();
+    }
+
   </script>
 
   

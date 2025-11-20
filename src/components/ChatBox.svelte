@@ -18,6 +18,10 @@
       return marked(text);
     }
 
+    // 👇 引入剛剛建立的 trigger
+    import { refreshTrigger } from "../stores/ui.js";
+
+
     type MsgRole = "user" | "ai";
 
     interface ChatMessage {
@@ -106,6 +110,10 @@
 
       // 同步寫入 DO
       await storage.addMessage(cid, "user", userText);
+
+      // 👇👇👇 關鍵：發送訊息成功後，觸發列表刷新 👇👇👇
+      refreshTrigger.set(Date.now());
+
 
       // --- ↓↓↓ 喺所有嘢搞掂之後，重置旗標 ↓↓↓ ---
       // 用 setTimeout 確保 Svelte 有足夠時間處理完 store 嘅更新
