@@ -2,6 +2,8 @@
 
 An Astro + Svelte chat interface that stores conversations remotely and replies with AI-generated responses. The UI splits the experience into a conversation list and a chat panel so you can jump between threads while keeping messages persisted in a Cloudflare Worker-powered API.
 
+Live demo: https://chatroom-6o4.pages.dev
+
 ## Features
 - Create, browse, and delete conversations that are saved through the Chat Storage Worker API.
 - Compose messages and receive AI replies from the Gemini Worker endpoint, rendered with a typewriter effect.
