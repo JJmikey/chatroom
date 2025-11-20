@@ -7,22 +7,14 @@
       selectConversation
     } from "../stores/selectedConversation";
     import { ChatStorageSDK } from "../utils/chat-storage-sdk.js";
-
-    // ⭐ 建立 SDK instance
     const storage = new ChatStorageSDK(
       "https://chat-storage.ktkt0099ktkt.workers.dev"
     );
-
-    // 👇 2. 宣告一個變數，用來綁定 DOM 元素
     let messagesDiv: HTMLDivElement;
-
-    // 👇 3. 建立 Auto Scroll 函數
     async function scrollToBottom() {
-      // 等待 Svelte 更新畫面
-      await tick(); 
-      
+      await tick();
+
       if (messagesDiv) {
-        // 將捲軸位置設為最底
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
       }
     }
@@ -35,7 +27,6 @@
       return marked(text);
     }
 
-    // 👇 引入剛剛建立的 trigger
     import { refreshTrigger } from "../stores/ui.js";
 
 
@@ -50,14 +41,11 @@
     let input = "";
     let messages: ChatMessage[] = [];
     let isTyping = false;
-    // --- ↓↓↓ 新增一個旗標 ↓↓↓ ---
     let isCreatingConversation = false;
 
-    // ⭐ 從 DO 載入訊息（用 SDK）
     async function loadMessages(conversationId: string) {
       try {
         messages = await storage.getConversation(conversationId);
-        // 👇 載入完畢，捲到底部
         scrollToBottom();
       } catch (err) {
         console.error("Load messages failed:", err);
@@ -65,20 +53,15 @@
       }
     }
 
-    // ⭐ reactive：當選中嘅 conversation 改變，就 reload
     $: {
       const cid = $selectedConversationId;
-      // 只有喺 ID 存在，而且我哋唔係喺建立緊新對話嘅時候，先去載入
       if (cid && !isCreatingConversation) {
         loadMessages(cid);
-      } 
-       // 👇 新增這部分：如果 cid 變成 null (即係撳咗 New Chat)，要清空 messages
-       else if (!cid) {
+      } else if (!cid) {
         messages = [];
       }
     }
 
-    // 打字效果
     function typeWriterEffect(text: string, callback: (t: string) => void) {
       let index = 0;
       const speed = 20;
@@ -87,14 +70,12 @@
         callback(text.slice(0, index));
         index++;
 
-        // 👇 每次打出一隻字，都確保 Scroll 在最底 (就像 ChatGPT 效果)
         scrollToBottom();
 
         if (index > text.length) clearInterval(interval);
       }, speed);
     }
 
-    // ⭐⭐ SEND：未有 conversation => 自動 create 一個
     async function send() {
       if (!input.trim()) return;
 
@@ -102,60 +83,42 @@
       const userText = input;
       input = "";
 
-      // STEP 1：如果仲未有 conversation，就先 create 一個
       if (!convoId) {
-        // --- ↓↓↓ 控制旗標 ↓↓↓ ---
-        isCreatingConversation = true; // 話俾 reactive 區塊知：「咪郁！」
-        // --- ↑↑↑ 控制旗標 ↑↑↑ ---
-
+        isCreatingConversation = true;
 
         const newConvo = await storage.createConversation();
-        const newId: string = newConvo.id;   // 這個肯定是 string
+        const newId: string = newConvo.id;
 
         convoId = newId;
 
-        // 先顯示用戶訊息，確保 UI 更新
         messages = [{ role: "user", text: userText, timestamp: Date.now() }];
 
-        selectConversation(newId);          // ✅ 傳的是 string，TS 不會再投訴
-         
+        selectConversation(newId);
+
       } else {
-        // 如果係現有對話，直接顯示用戶訊息
         messages = [
           ...messages,
           { role: "user", text: userText, timestamp: Date.now() }
         ];
       }
 
-      // 👇 用戶訊息顯示出來後，捲到底部
       scrollToBottom();
 
-      // 去到呢度，convoId 一定係 string
       const cid: string = convoId;
 
-      // 同步寫入 DO
       await storage.addMessage(cid, "user", userText);
 
-      // 👇👇👇 關鍵：發送訊息成功後，觸發列表刷新 👇👇👇
       refreshTrigger.set(Date.now());
 
-
-      // --- ↓↓↓ 喺所有嘢搞掂之後，重置旗標 ↓↓↓ ---
-      // 用 setTimeout 確保 Svelte 有足夠時間處理完 store 嘅更新
       setTimeout(() => {
         isCreatingConversation = false;
       }, 0);
-      // --- ↑↑↑ 重置旗標 ↑↑↑ ---
 
-      // STEP 3：call Gemini worker
       isTyping = true;
 
-
-      // 👇👇👇 新增：整理歷史訊息格式 👇👇👇
-      // Gemini API 需要 "model" 而不是 "ai"，並且結構是 parts: [{ text: ... }]
       const historyPayload = messages.map((msg) => ({
         role: msg.role === "ai" ? "model" : "user",
-        parts: [{ text: msg.text }] 
+        parts: [{ text: msg.text }]
       }));
 
 
@@ -165,10 +128,8 @@
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            // 👇👇👇 修改：傳送整個 contents 陣列，而不僅僅是 prompt 👇👇👇
-            // 注意：你的 Rust Worker 必須能夠接收 "contents" 這個字段
-            body: JSON.stringify({ 
-              contents: historyPayload 
+            body: JSON.stringify({
+              contents: historyPayload
             })
           }
         );
@@ -176,7 +137,6 @@
         const data = await res.json();
         console.log("Gemini response:", data);
 
-        // 🔍 多幾個 fallback，避免「No response text found」
         const reply: string | undefined =
           data.reply ?? data.text ?? data.message ?? data.choices?.[0]?.text;
 
@@ -195,7 +155,6 @@
 
         isTyping = false;
 
-        // STEP 4：typing 動畫顯示 AI 回覆
         messages = [
           ...messages,
           { role: "ai", text: "", timestamp: Date.now() }
@@ -207,7 +166,6 @@
           messages = [...messages];
         });
 
-        // STEP 5：將 AI 回覆存返去 DO
         await storage.addMessage(cid, "ai", reply);
       } catch (err) {
         console.error("Gemini error:", err);
@@ -223,7 +181,6 @@
       }
     }
   </script>
-  <!-- 👇 新增最外層 div -->
   <div class="chat-root">
     <div class="mobile-header">
       <button class="back-btn" on:click={() => showList.set(true)}>&lt;</button>
@@ -257,70 +214,53 @@
 
   
   <style>
-     /* 👇 新增這個 class */
     .chat-root {
       display: flex;
       flex-direction: column;
       height: 100%;
       width: 100%;
-      overflow: hidden; /* 防止撐爆 */
+      overflow: hidden;
     }
-
 
     .mobile-header {
       display: none;
-      /* 防止 header 被壓縮 */
-      flex-shrink: 0; 
+      flex-shrink: 0;
     }
 
     @media (max-width: 600px) {
       .mobile-header {
         display: flex;
         align-items: center;
-        padding: 10px 15px;     /* 加點 padding */
+        padding: 10px 15px;
         background: #fafafa;
         border-bottom: 1px solid #ddd;
-        height: 50px;        
-        min-height: 50px; /* 俾個高度佢 */
-        flex-shrink: 0; 
-
-        /* 👇 確保它在最上層 */
+        height: 50px;
+        min-height: 50px;
+        flex-shrink: 0;
         position: relative;
         z-index: 10;
       }
 
       .back-btn {
-        /* 1. 形狀與大小 */
         width: 32px;
         height: 32px;
-        border-radius: 50%; /* 變成圓形 */
-
-        /* 2. 顏色 */
-        background: black;  /* 黑色背景 */
-        color: white;       /* 白色符號 */
+        border-radius: 50%;
+        background: black;
+        color: white;
         border: none;
-        
-        /* 3. 內容置中 */
         display: flex;
         align-items: center;
         justify-content: center;
-
-        /* 4. 字體調整 */
         font-size: 18px;
         font-weight: bold;
-        font-family: monospace; /* 令 < 符號形狀更標準 */
+        font-family: monospace;
         cursor: pointer;
-        
-        /* 5. 微調 */
-        padding-bottom: 2px; /* 有時候符號視覺上會偏上，微調一下 */
-
-        
+        padding-bottom: 2px;
       }
     }
-    
-    /* 如果想有點擊效果 (變淺少少) */
+
     .back-btn:active {
-        opacity: 0.7;
+      opacity: 0.7;
     }
 
     .chat-box {
@@ -329,29 +269,22 @@
       border-radius: 8px;
       height: 100%;
     }
-  
-  
-    
+
     .chat-wrapper {
       display: flex;
       flex-direction: column;
-      flex: 1;       /* <-- ✅ 改用這行，自動佔據剩餘空間 */
-      min-height: 0; /* <-- ✅ 重要！防止 flex child 內容過多時無法 scroll */
+      flex: 1;
+      min-height: 0;
     }
-  
+
     .messages {
       flex: 1;
       overflow-y: auto;
       padding: 10px;
-
-      /* 👇 針對 iOS 的關鍵屬性：開啟慣性滾動 (Inertial Scrolling) */
-      /* 如果唔加呢行，iPhone 上滑動會好卡 (Sticky) */
-      -webkit-overflow-scrolling: touch; 
-
-      /* 👇 確保 Scrollbar 唔會被切走 (Optional) */
+      -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
     }
-  
+
     .bubble {
       max-width: 70%;
       padding: 10px 14px;
@@ -360,35 +293,35 @@
       font-size: 15px;
       line-height: 1.4;
     }
-  
+
     .you {
       background: #d2f8d2;
       align-self: flex-end;
       border-bottom-right-radius: 4px;
     }
-  
+
     .ai {
       background: #f1f1f1;
       align-self: flex-start;
       border-bottom-left-radius: 4px;
     }
-  
+
     .input-bar {
       display: flex;
       gap: 8px;
       padding: 8px;
       border-top: 1px solid #ddd;
     }
-  
+
     .text-input {
       flex: 1;
       border: 1px solid #ccc;
       border-radius: 20px;
       padding: 10px 14px;
-      font-size: 16px; 
+      font-size: 16px;
       outline: none;
     }
-  
+
     .send-btn {
       background: #6d6d6d;
       color: white;
@@ -400,35 +333,35 @@
     }
 
     .send-btn:hover {
-      background: #b1afaf; 
+      background: #b1afaf;
     }
 
-
     .typing {
-        display: flex;
-        gap: 4px;
-        opacity: 0.7;
+      display: flex;
+      gap: 4px;
+      opacity: 0.7;
     }
 
     .dot {
-        width: 6px;
-        height: 6px;
-        background: #555;
-        border-radius: 50%;
-        animation: blink 1.4s infinite both;
+      width: 6px;
+      height: 6px;
+      background: #555;
+      border-radius: 50%;
+      animation: blink 1.4s infinite both;
     }
 
     .dot:nth-child(2) {
-        animation-delay: 0.2s;
-        }
-        .dot:nth-child(3) {
-        animation-delay: 0.4s;
+      animation-delay: 0.2s;
+    }
+
+    .dot:nth-child(3) {
+      animation-delay: 0.4s;
     }
 
     @keyframes blink {
-        0% { opacity: .2; }
-        20% { opacity: 1; }
-        100% { opacity: .2; }
+      0% { opacity: .2; }
+      20% { opacity: 1; }
+      100% { opacity: .2; }
     }
 
 

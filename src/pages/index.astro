@@ -6,13 +6,11 @@ import AppShell from "../components/AppShell.svelte";
 ---
 
 <Layout>
- <!-- 把插槽傳給 AppShell，由 AppShell 決定誰顯示誰隱藏 -->
   <AppShell client:load>
     <span slot="sidebar">
       <ConversationList client:load />
     </span>
 
-    <!-- 👇 改用 div 並且確保 height 100%，否則 chatbox 唔會撐滿 -->
     <div slot="main" style="height: 100%">
       <ChatBox client:load />
     </div>

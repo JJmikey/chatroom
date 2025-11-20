@@ -2,13 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-       <!-- 👇👇👇 必須加入這一行 👇👇👇 -->
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-    <!-- 👆👆👆 必須加入這一行 👆👆👆 -->
     <title>Chatroom</title>
     <style>
       html {
-        /* 確保 html 也是固定 */
         height: 100%;
         width: 100%;
         overflow: hidden;
@@ -16,29 +13,15 @@
       body {
         margin: 0;
         font-family: sans-serif;
-
-        /* 👇 關鍵修正 1：使用 dvh (動態視口高度) 
-          dvh 會自動扣除 Safari 網址列的高度 */
-        height: 100dvh; 
-        
-        /* 如果瀏覽器太舊唔支援 dvh，回退用 100% */
-        min-height: 100%; 
-
-        /* 👇 關鍵修正 2：鎖死 Body 
-          防止 iOS Safari 的橡皮筋效果 (Rubber banding) 
-          同埋防止成個頁面被推上去 */
-        position: fixed; 
+        height: 100dvh;
+        min-height: 100%;
+        position: fixed;
         width: 100%;
-        overflow: hidden; /* 防止 body 出 scrollbar */
-        
+        overflow: hidden;
       }
-      
-      /* 👇 原本這裡複雜的 .app-layout, .sidebar, .main CSS 全部刪除 */
-      /* 因為現在由 AppShell.svelte 負責排版 */
     </style>
   </head>
   <body>
-    <!-- 直接 render slot 即可，不需要額外的 div class="app-layout" -->
     <slot />
   </body>
 </html>
