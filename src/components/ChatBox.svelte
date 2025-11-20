@@ -117,13 +117,26 @@
       // STEP 3：call Gemini worker
       isTyping = true;
 
+
+      // 👇👇👇 新增：整理歷史訊息格式 👇👇👇
+      // Gemini API 需要 "model" 而不是 "ai"，並且結構是 parts: [{ text: ... }]
+      const historyPayload = messages.map((msg) => ({
+        role: msg.role === "ai" ? "model" : "user",
+        parts: [{ text: msg.text }] 
+      }));
+
+
       try {
         const res = await fetch(
           "https://gemini-rust-worker.ktkt0099ktkt.workers.dev/chat",
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: userText })
+            // 👇👇👇 修改：傳送整個 contents 陣列，而不僅僅是 prompt 👇👇👇
+            // 注意：你的 Rust Worker 必須能夠接收 "contents" 這個字段
+            body: JSON.stringify({ 
+              contents: historyPayload 
+            })
           }
         );
 
@@ -273,6 +286,13 @@
       flex: 1;
       overflow-y: auto;
       padding: 10px;
+
+      /* 👇 針對 iOS 的關鍵屬性：開啟慣性滾動 (Inertial Scrolling) */
+      /* 如果唔加呢行，iPhone 上滑動會好卡 (Sticky) */
+      -webkit-overflow-scrolling: touch; 
+
+      /* 👇 確保 Scrollbar 唔會被切走 (Optional) */
+      overscroll-behavior: contain;
     }
   
     .bubble {
