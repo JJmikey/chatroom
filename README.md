@@ -1,44 +1,55 @@
-# Astro Starter Kit: Minimal
+# Chatroom
 
-```sh
-npm create astro@latest -- --template minimal
+An Astro + Svelte chat interface that stores conversations remotely and replies with AI-generated responses. The UI splits the experience into a conversation list and a chat panel so you can jump between threads while keeping messages persisted in a Cloudflare Worker-powered API.
+
+## Features
+- Create, browse, and delete conversations that are saved through the Chat Storage Worker API.
+- Compose messages and receive AI replies from the Gemini Worker endpoint, rendered with a typewriter effect.
+- Responsive layout with a sidebar conversation list on desktop and a mobile-friendly toggle between list and chat views.
+- Markdown rendering for AI messages, plus basic typing indicators while the model responds.
+
+## Tech stack
+- **Astro** for the site shell with **Svelte** components powering the interactive UI.
+- **TypeScript** in Svelte components for type safety and store management.
+- Remote APIs: `ChatStorageSDK` communicates with the Chat Storage Worker, and chat prompts are sent to the Gemini Worker.
+
+## Project structure
 ```
-
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
 /
 ├── public/
 ├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+│   ├── components/      # App shell, conversation list, chat box
+│   ├── layouts/         # Base page layout
+│   ├── pages/           # Astro pages (index.astro is the entrypoint)
+│   ├── stores/          # UI and conversation selection state
+│   └── utils/           # ChatStorageSDK for remote persistence
+├── package.json
+└── tsconfig.json
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Getting started
+1. Install dependencies:
+   ```sh
+   npm install
+   ```
+2. Start the dev server:
+   ```sh
+   npm run dev
+   ```
+   The site runs at http://localhost:4321 by default.
+3. Build for production:
+   ```sh
+   npm run build
+   ```
+4. Preview the production build locally:
+   ```sh
+   npm run preview
+   ```
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+## Configuration notes
+- The chat storage base URL is defined in `src/utils/chat-storage-sdk.js` and currently targets `https://chat-storage.ktkt0099ktkt.workers.dev`.
+- AI responses are fetched from `https://gemini-rust-worker.ktkt0099ktkt.workers.dev/chat`. Update these endpoints if you are running your own backing services.
 
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
-# chatroom
+## Learn more
+- [Astro documentation](https://docs.astro.build)
+- [Svelte documentation](https://svelte.dev/docs)
