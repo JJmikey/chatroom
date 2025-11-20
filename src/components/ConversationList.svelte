@@ -2,7 +2,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     // 1. 引入我哋建立嘅 action
-    import { selectConversation } from "../stores/selectedConversation.ts";
+    import { selectConversation , selectedConversationId} from "../stores/selectedConversation.ts";
     import { ChatStorageSDK } from "../utils/chat-storage-sdk.js";
   
      // 建立 SDK instance
@@ -11,7 +11,8 @@
    // 👇 確保引入 showList 用嚟切換手機視圖
     import { showList } from "../stores/ui.js";
 
-
+    // 👇 引入新造的組件
+    import ConversationItem from "./ConversationItem.svelte";
 
     interface Conversation {
       id: string;
@@ -46,6 +47,32 @@
       showList.set(false);
     }
 
+
+     // 👇 新增：處理刪除邏輯
+    async function handleDelete(event: CustomEvent<string>) {
+      const idToDelete = event.detail;
+      
+      // 1. 簡單的確認 (Optional)
+      if (!confirm("Are you sure you want to delete this chat?")) return;
+
+      try {
+        // 2. 呼叫 SDK 刪除 API
+        await storage.deleteConversation(idToDelete);
+
+        // 3. 前端即時更新 UI (移除該項目)
+        conversations = conversations.filter(c => c.id !== idToDelete);
+
+        // 4. 如果剛好正在看這個被刪除的對話，要清空右邊
+        if ($selectedConversationId === idToDelete) {
+          selectConversation(null);
+        }
+        
+      } catch (err) {
+        alert("Failed to delete conversation");
+        console.error(err);
+      }
+    }
+
   
     onMount(load);
   </script>
@@ -59,12 +86,12 @@
     </div>
 
       {#each conversations as convo}
-      <div class="item" on:click={() => choose(convo.id)}>
-          <div class="title">{convo.title || "(no title)"}</div>
-          <div class="time">
-            {new Date(convo.updated).toLocaleString()}
-          </div>
-        </div>
+       <!-- 👇 改用新組件，並監聽自定義事件 -->
+        <ConversationItem 
+        conversation={convo} 
+        on:click={() => choose(convo.id)}
+        on:delete={handleDelete} 
+      />
       {/each}
     </div>
   
