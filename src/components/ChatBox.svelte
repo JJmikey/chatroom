@@ -1,5 +1,6 @@
 
   <script lang="ts">
+    import { tick } from "svelte"; 
     import { marked } from "marked";
     import {
       selectedConversationId,
@@ -11,6 +12,22 @@
     const storage = new ChatStorageSDK(
       "https://chat-storage.ktkt0099ktkt.workers.dev"
     );
+
+    // 👇 2. 宣告一個變數，用來綁定 DOM 元素
+    let messagesDiv: HTMLDivElement;
+
+    // 👇 3. 建立 Auto Scroll 函數
+    async function scrollToBottom() {
+      // 等待 Svelte 更新畫面
+      await tick(); 
+      
+      if (messagesDiv) {
+        // 將捲軸位置設為最底
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+    }
+
+
 
     import { showList } from "../stores/ui.js";
 
@@ -40,6 +57,8 @@
     async function loadMessages(conversationId: string) {
       try {
         messages = await storage.getConversation(conversationId);
+        // 👇 載入完畢，捲到底部
+        scrollToBottom();
       } catch (err) {
         console.error("Load messages failed:", err);
         messages = [];
@@ -67,6 +86,9 @@
       const interval = setInterval(() => {
         callback(text.slice(0, index));
         index++;
+
+        // 👇 每次打出一隻字，都確保 Scroll 在最底 (就像 ChatGPT 效果)
+        scrollToBottom();
 
         if (index > text.length) clearInterval(interval);
       }, speed);
@@ -104,6 +126,9 @@
           { role: "user", text: userText, timestamp: Date.now() }
         ];
       }
+
+      // 👇 用戶訊息顯示出來後，捲到底部
+      scrollToBottom();
 
       // 去到呢度，convoId 一定係 string
       const cid: string = convoId;
@@ -201,11 +226,11 @@
   <!-- 👇 新增最外層 div -->
   <div class="chat-root">
     <div class="mobile-header">
-      <button class="back-btn" on:click={() => showList.set(true)}>← Back</button>
+      <button class="back-btn" on:click={() => showList.set(true)}>&lt;</button>
     </div>
 
     <div class="chat-wrapper">
-      <div class="messages">
+      <div class="messages" bind:this={messagesDiv}>
         {#each messages as msg}
           <div class={`bubble ${msg.role}`}>
             {@html md(msg.text)}
@@ -265,13 +290,37 @@
       }
 
       .back-btn {
-        font-size: 18px;
-        background: none;
+        /* 1. 形狀與大小 */
+        width: 32px;
+        height: 32px;
+        border-radius: 50%; /* 變成圓形 */
+
+        /* 2. 顏色 */
+        background: black;  /* 黑色背景 */
+        color: white;       /* 白色符號 */
         border: none;
+        
+        /* 3. 內容置中 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        /* 4. 字體調整 */
+        font-size: 18px;
+        font-weight: bold;
+        font-family: monospace; /* 令 < 符號形狀更標準 */
         cursor: pointer;
-        font-weight: 600;
+        
+        /* 5. 微調 */
+        padding-bottom: 2px; /* 有時候符號視覺上會偏上，微調一下 */
+
         
       }
+    }
+    
+    /* 如果想有點擊效果 (變淺少少) */
+    .back-btn:active {
+        opacity: 0.7;
     }
 
     .chat-box {
@@ -341,7 +390,7 @@
     }
   
     .send-btn {
-      background: #25d366;
+      background: #6d6d6d;
       color: white;
       border: none;
       padding: 0 18px;
@@ -349,6 +398,11 @@
       font-weight: 600;
       cursor: pointer;
     }
+
+    .send-btn:hover {
+      background: #b1afaf; 
+    }
+
 
     .typing {
         display: flex;
