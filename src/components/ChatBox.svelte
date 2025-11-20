@@ -231,10 +231,16 @@
       .mobile-header {
         display: flex;
         align-items: center;
-        padding: 10px;
+        padding: 10px 15px;     /* 加點 padding */
         background: #fafafa;
         border-bottom: 1px solid #ddd;
+        height: 50px;        
         min-height: 50px; /* 俾個高度佢 */
+        flex-shrink: 0; 
+
+        /* 👇 確保它在最上層 */
+        position: relative;
+        z-index: 10;
       }
 
       .back-btn {
@@ -242,6 +248,8 @@
         background: none;
         border: none;
         cursor: pointer;
+        font-weight: 600;
+        
       }
     }
 
