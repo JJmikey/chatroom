@@ -2,11 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Chatroom</title>
+    <style>
+      body {
+        margin: 0;
+        height: 100vh;
+        overflow: hidden; /* 防止 body 出 scrollbar */
+        font-family: sans-serif;
+      }
+      
+      /* 👇 原本這裡複雜的 .app-layout, .sidebar, .main CSS 全部刪除 */
+      /* 因為現在由 AppShell.svelte 負責排版 */
+    </style>
   </head>
-
-  <body style="margin: 0; background-color: #f0f2f5; min-height: 100dvh;">
+  <body>
+    <!-- 直接 render slot 即可，不需要額外的 div class="app-layout" -->
     <slot />
   </body>
 </html>

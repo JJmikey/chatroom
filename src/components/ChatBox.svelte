@@ -1,130 +1,265 @@
-<script lang="ts">
+
+  <script lang="ts">
     import { marked } from "marked";
-  
-    function md(htmlText: string) {
-        return marked(htmlText);
+    import {
+      selectedConversationId,
+      selectConversation
+    } from "../stores/selectedConversation";
+    import { ChatStorageSDK } from "../utils/chat-storage-sdk.js";
+
+    // ⭐ 建立 SDK instance
+    const storage = new ChatStorageSDK(
+      "https://chat-storage.ktkt0099ktkt.workers.dev"
+    );
+
+    import { showList } from "../stores/ui.js";
+
+    function md(text: string) {
+      return marked(text);
     }
 
-    let isTyping = false;
+    type MsgRole = "user" | "ai";
 
+    interface ChatMessage {
+      role: MsgRole;
+      text: string;
+      timestamp: number;
+    }
 
-
-    // 之後如果你想再玩嚴謹啲，可以改返型別
     let input = "";
-    let messages: any[] = [];
+    let messages: ChatMessage[] = [];
+    let isTyping = false;
+    // --- ↓↓↓ 新增一個旗標 ↓↓↓ ---
+    let isCreatingConversation = false;
 
-
-    function typeWriterEffect(text: string, callback: (t: string) => void) {
-        let index = 0;
-        const speed = 20; // 每字 20ms，可以調整
-
-        const interval = setInterval(() => {
-            callback(text.slice(0, index));
-            index++;
-
-            if (index > text.length) {
-            clearInterval(interval);
-            }
-        }, speed);
+    // ⭐ 從 DO 載入訊息（用 SDK）
+    async function loadMessages(conversationId: string) {
+      try {
+        messages = await storage.getConversation(conversationId);
+      } catch (err) {
+        console.error("Load messages failed:", err);
+        messages = [];
+      }
     }
 
+    // ⭐ reactive：當選中嘅 conversation 改變，就 reload
+    $: {
+      const cid = $selectedConversationId;
+      // 只有喺 ID 存在，而且我哋唔係喺建立緊新對話嘅時候，先去載入
+      if (cid && !isCreatingConversation) {
+        loadMessages(cid);
+      } 
+       // 👇 新增這部分：如果 cid 變成 null (即係撳咗 New Chat)，要清空 messages
+       else if (!cid) {
+        messages = [];
+      }
+    }
 
-  
+    // 打字效果
+    function typeWriterEffect(text: string, callback: (t: string) => void) {
+      let index = 0;
+      const speed = 20;
+
+      const interval = setInterval(() => {
+        callback(text.slice(0, index));
+        index++;
+
+        if (index > text.length) clearInterval(interval);
+      }, speed);
+    }
+
+    // ⭐⭐ SEND：未有 conversation => 自動 create 一個
     async function send() {
       if (!input.trim()) return;
 
+      let convoId: string | null = $selectedConversationId;
+      const userText = input;
+      input = "";
+
+      // STEP 1：如果仲未有 conversation，就先 create 一個
+      if (!convoId) {
+        // --- ↓↓↓ 控制旗標 ↓↓↓ ---
+        isCreatingConversation = true; // 話俾 reactive 區塊知：「咪郁！」
+        // --- ↑↑↑ 控制旗標 ↑↑↑ ---
+
+
+        const newConvo = await storage.createConversation();
+        const newId: string = newConvo.id;   // 這個肯定是 string
+
+        convoId = newId;
+
+        // 先顯示用戶訊息，確保 UI 更新
+        messages = [{ role: "user", text: userText, timestamp: Date.now() }];
+
+        selectConversation(newId);          // ✅ 傳的是 string，TS 不會再投訴
+         
+      } else {
+        // 如果係現有對話，直接顯示用戶訊息
+        messages = [
+          ...messages,
+          { role: "user", text: userText, timestamp: Date.now() }
+        ];
+      }
+
+      // 去到呢度，convoId 一定係 string
+      const cid: string = convoId;
+
+      // 同步寫入 DO
+      await storage.addMessage(cid, "user", userText);
+
+      // --- ↓↓↓ 喺所有嘢搞掂之後，重置旗標 ↓↓↓ ---
+      // 用 setTimeout 確保 Svelte 有足夠時間處理完 store 嘅更新
+      setTimeout(() => {
+        isCreatingConversation = false;
+      }, 0);
+      // --- ↑↑↑ 重置旗標 ↑↑↑ ---
+
+      // STEP 3：call Gemini worker
       isTyping = true;
 
-  
-      // 加用戶訊息
-      messages = [...messages, { from: "you", text: input }];
-  
       try {
-        const res = await fetch("https://gemini-rust-worker.ktkt0099ktkt.workers.dev/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ prompt: input })
-        });
-  
-        if (!res.ok) {
-          console.error("API error:", res.status);
-          messages = [...messages, { from: "ai", text: `⚠️ API error: ${res.status}` }];
-          input = "";
+        const res = await fetch(
+          "https://gemini-rust-worker.ktkt0099ktkt.workers.dev/chat",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: userText })
+          }
+        );
+
+        const data = await res.json();
+        console.log("Gemini response:", data);
+
+        // 🔍 多幾個 fallback，避免「No response text found」
+        const reply: string | undefined =
+          data.reply ?? data.text ?? data.message ?? data.choices?.[0]?.text;
+
+        if (!reply) {
+          isTyping = false;
+          messages = [
+            ...messages,
+            {
+              role: "ai",
+              text: "⚠️ No response text found",
+              timestamp: Date.now()
+            }
+          ];
           return;
         }
-  
-        const data = await res.json();
 
-        isTyping = false;       // ← typing 消失
+        isTyping = false;
 
-  
-        // 先加一個空白 AI 訊息，等佢逐字填入
-        messages = [...messages, { from: "ai", text: "" }];
-
+        // STEP 4：typing 動畫顯示 AI 回覆
+        messages = [
+          ...messages,
+          { role: "ai", text: "", timestamp: Date.now() }
+        ];
         const aiIndex = messages.length - 1;
 
-        typeWriterEffect(data.reply, (partial) => {
-            messages[aiIndex].text = partial;
-            messages = [...messages]; // 必須：Svelte 才會 re-render
+        typeWriterEffect(reply, (partial) => {
+          messages[aiIndex].text = partial;
+          messages = [...messages];
         });
 
+        // STEP 5：將 AI 回覆存返去 DO
+        await storage.addMessage(cid, "ai", reply);
       } catch (err) {
-        console.error("Fetch error:", err);
-        messages = [...messages, { from: "ai", text: "⚠️ Network error." }];
+        console.error("Gemini error:", err);
+        isTyping = false;
+        messages = [
+          ...messages,
+          {
+            role: "ai",
+            text: "⚠️ Network error.",
+            timestamp: Date.now()
+          }
+        ];
       }
-  
-      input = "";
     }
   </script>
-  
-  <div class="chat-container">
-    <div class="messages">
-        <!-- @ts-ignore -->
-
-        {#each messages as msg}
-        <div class={`bubble ${(msg as any).from}`}>
-            {@html md(msg.text)}
-        </div>
-        {/each} 
-
-
-        {#if isTyping}
-            <div class="bubble ai typing">
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
-            </div>
-        {/if}
-      
+  <!-- 👇 新增最外層 div -->
+  <div class="chat-root">
+    <div class="mobile-header">
+      <button class="back-btn" on:click={() => showList.set(true)}>← Back</button>
     </div>
-  
-    <div class="input-bar">
-      <input
-        class="text-input"
-        type="text"
-        bind:value={input}
-        placeholder="Type a message..."
-        on:keydown={(e) => e.key === "Enter" && send()}
-      />
-      <button class="send-btn" on:click={send}>Send</button>
+
+    <div class="chat-wrapper">
+      <div class="messages">
+        {#each messages as msg}
+          <div class={`bubble ${msg.role}`}>
+            {@html md(msg.text)}
+          </div>
+        {/each}
+    
+        {#if isTyping}
+          <div class="bubble ai typing">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          </div>
+        {/if}
+      </div>
+    
+      <div class="input-bar">
+        <input class="text-input"
+          bind:value={input}
+          placeholder="Type a message..."
+          on:keydown={(e) => e.key === "Enter" && send()}
+        />
+        <button class="send-btn" on:click={send}>Send</button>
+      </div>
     </div>
   </div>
+
   
   <style>
-    .chat-container {
-        display: flex;
-        flex-direction: column;
-        height: 100dvh;
-        width: 100%;
-        max-width: 420px;
-        margin: 0 auto;   /* 重要！置中（只在 desktop） */
-        background: #ffffff;
-        border-radius: 0;
-        box-shadow: none;
+     /* 👇 新增這個 class */
+    .chat-root {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+      overflow: hidden; /* 防止撐爆 */
     }
 
+
+    .mobile-header {
+      display: none;
+      /* 防止 header 被壓縮 */
+      flex-shrink: 0; 
+    }
+
+    @media (max-width: 600px) {
+      .mobile-header {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        background: #fafafa;
+        border-bottom: 1px solid #ddd;
+        min-height: 50px; /* 俾個高度佢 */
+      }
+
+      .back-btn {
+        font-size: 18px;
+        background: none;
+        border: none;
+        cursor: pointer;
+      }
+    }
+
+    .chat-box {
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      height: 100%;
+    }
+  
+  
+    
+    .chat-wrapper {
+      display: flex;
+      flex-direction: column;
+      flex: 1;       /* <-- ✅ 改用這行，自動佔據剩餘空間 */
+      min-height: 0; /* <-- ✅ 重要！防止 flex child 內容過多時無法 scroll */
+    }
   
     .messages {
       flex: 1;
