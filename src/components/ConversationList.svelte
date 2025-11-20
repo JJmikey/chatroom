@@ -101,7 +101,7 @@
   <div class="list">
      <!-- 👇 改用 header div 包住標題同按鈕 -->
     <div class="header">
-      <h3>Conversations</h3>
+      
       <button class="new-btn" on:click={createNew}>+</button>
     </div>
 
@@ -131,7 +131,7 @@
     }
      /* 👇 新增按鈕樣式 */
     .new-btn {
-      background: #25d366;
+      background: #6d6d6d;
       color: white;
       border: none;
       width: 30px;
@@ -146,25 +146,8 @@
     }
 
     .new-btn:hover {
-      background: #1ebc57;
+      background: #a6b4ab;
     }
-    .item {
-      padding: 10px;
-      border-radius: 6px;
-      margin-bottom: 10px;
-      background: white;
-      border: 1px solid #ddd;
-      cursor: pointer;
-    }
-    .item:hover {
-      background: #eaf6ff;
-    }
-    .title {
-      font-weight: 600;
-    }
-    .time {
-      font-size: 12px;
-      color: #888;
-    }
+  
   </style>
   

@@ -94,7 +94,8 @@
       height: 65px; /* 固定高度確保佈局穩定 */
       overflow: hidden;
       border-radius: 6px;
-      background-color: #ff3b30; /* 底色紅色 */
+      background-color: #4d4b4b; /* 底色紅色 */
+      cursor: pointer;
     }
   
     /* 底層按鈕區 */
@@ -135,7 +136,18 @@
       justify-content: center;
       /* 這是關鍵：確保滑動層蓋住底層 */
       z-index: 2; 
+      /* 👇 加入這行讓顏色變化有過渡動畫，感覺順滑啲 */
+      transition: background 0.2s, transform 0.2s ease-out; 
+      
+      /* 👇 確保滑鼠指上去會變手指 */
+      cursor: pointer; 
     }
+
+    /* 👇👇👇 新增這裡：Hover 效果 👇👇👇 */
+    .content:hover {
+      background: #e4e2e2; /* 這是你原本的淺藍色，或者用你剛才的 #5c96c2 */
+    }
+    
   
     .title {
       font-weight: 600;
